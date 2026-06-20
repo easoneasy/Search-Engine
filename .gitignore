@@ -67,3 +67,39 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# 忽略所有的离线生成的索引与数据文件
+data/index/*.dat
+data/index/*.idx
+data/corpus/
+
+# 忽略最终生成的可执行文件目录和测试目录
+bin/
+tests/
+test/
+
+# 忽略文档目录
+docs/
+
+# （可选）忽略本地真实的配置文件，防止本地绝对路径或敏感配置提交
+# 可以提交一个 server.conf.example 作为示例，而真正的 server.conf 被忽略
+conf/*.conf
+!conf/*.conf.example
+
+
+# 临时备份文件 (如 Vim/Nano 等编辑器产生的波浪号文件)
+*~
+
+# IDE 专属配置文件 (防止提交个人的编辑器配色、C++路径配置等)
+.vscode/
+.idea/
+cmake-build-*/
+
+# 操作系统环境生成文件 (如果有人用 Mac 看代码，防止提交此文件)
+.DS_Store
+Thumbs.db
+
+# 针对 data 目录的精细化控制
+# 允许提交字典目录及其内容（这是程序运行的必需依赖）
+!data/dict/
+!data/dict/**
