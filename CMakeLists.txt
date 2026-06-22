@@ -12,7 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
 # 设置可执行文件的输出路径为项目根目录下的 bin 文件夹
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # 头文件搜索路径
 # /usr/local/include: cppjieba, simhash, utfcpp 等 header-only 库的安装位置
@@ -26,7 +27,12 @@ include_directories(
 find_package(Threads REQUIRED)
 
 # tinyxml2: 用于离线模块解析 XML 语料
-find_package(tinyxml2 REQUIRED)
+# 手动查找 tinyxml2（apt 安装版不含 cmake 配置文件）
+find_path(TINYXML2_INCLUDE_DIR tinyxml2.h)
+find_library(TINYXML2_LIBRARY tinyxml2)
+if(NOT TINYXML2_INCLUDE_DIR OR NOT TINYXML2_LIBRARY)
+    message(FATAL_ERROR "tinyxml2 not found")
+endif()
 
 # nlohmann_json: 用于在线模块 JSON 序列化（暂未启用）
 # find_package(nlohmann_json REQUIRED)
@@ -44,14 +50,17 @@ file(GLOB COMMON_SOURCES CONFIGURE_DEPENDS "src/common/*.cpp")
 # =========================================================================
 file(GLOB OFFLINE_SOURCES CONFIGURE_DEPENDS "src/offline/*.cpp")
 
-# 生成离线可执行文件 nutshell_offline
-add_executable(nutshell_offline ${OFFLINE_SOURCES} ${COMMON_SOURCES})
+# 生成离线可执行文件 search_engine
+add_executable(search_engine ${OFFLINE_SOURCES} ${COMMON_SOURCES})
 
 # 链接离线程序需要的库
-target_link_libraries(nutshell_offline
-    tinyxml2::tinyxml2
+
+target_link_libraries(search_engine
+    ${TINYXML2_LIBRARY}
     Threads::Threads
 )
+target_include_directories(search_engine PRIVATE ${TINYXML2_INCLUDE_DIR})
+
 
 # =========================================================================
 # 模块三：在线检索服务器 (Online Engine)
