@@ -3,6 +3,7 @@
 #include<fstream>
 #include <utfcpp/utf8.h>
 
+
 using namespace std;
 
 // 加载停用词,放入容器中
@@ -42,4 +43,26 @@ bool isChineseWord(const string &word)
         }
     }
     return true;
+}
+
+
+// 拆分汉字
+vector<string> splitChinese(const string &text)
+{
+    vector<string> result;
+
+    const char *curr = text.c_str();
+    const char *end = curr + text.size();
+
+    while(curr != end)
+    {
+        auto start = curr;
+        // 将it移动到下一个utf8字符所在位置
+        utf8::next(curr,end);
+        // 把汉字放入vector中
+        // 使用emplace_back可以避免拷贝
+        // push_back会拷贝
+        result.emplace_back(start,curr);
+    }
+    return result;
 }

@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>NutShell Search</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+                background: #fff;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* === 搜索首页（居中大搜索框） === */
+            .home-container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding-bottom: 15vh;
+                transition: all 0.3s;
+            }
+
+            .home-container.has-results {
+                justify-content: flex-start;
+                padding-top: 30px;
+                padding-bottom: 0;
+            }
+
+            .logo {
+                font-size: 72px;
+                font-weight: 700;
+                margin-bottom: 8px;
+                background: linear-gradient(
+                    135deg,
+                    #4285f4,
+                    #ea4335,
+                    #fbbc05,
+                    #34a853
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                letter-spacing: -2px;
+                transition: font-size 0.3s;
+            }
+
+            .has-results .logo {
+                font-size: 36px;
+                margin-bottom: 20px;
+            }
+
+            .subtitle {
+                color: #5f6368;
+                font-size: 14px;
+                margin-top: 4px;
+                transition: opacity 0.3s;
+            }
+
+            .has-results .subtitle {
+                opacity: 0;
+                height: 0;
+                margin: 0;
+            }
+
+            /* === 搜索框区域 === */
+            .search-wrapper {
+                width: 100%;
+                max-width: 584px;
+                position: relative;
+                margin: 0 auto;
+                padding: 0 20px;
+                transition: max-width 0.3s;
+            }
+
+            .has-results .search-wrapper {
+                max-width: 652px;
+                margin-bottom: 20px;
+            }
+
+            .search-bar {
+                display: flex;
+                align-items: center;
+                border: 1px solid #dfe1e5;
+                border-radius: 24px;
+                padding: 0 16px;
+                height: 46px;
+                transition: all 0.2s;
+                background: #fff;
+            }
+
+            .search-bar:hover {
+                box-shadow: 0 1px 6px rgba(32, 33, 36, 0.15);
+                border-color: rgba(223, 225, 229, 0);
+            }
+
+            .search-bar.focused {
+                box-shadow: 0 1px 6px rgba(32, 33, 36, 0.2);
+                border-color: rgba(223, 225, 229, 0);
+                border-radius: 24px 24px 0 0;
+            }
+
+            .search-bar.has-suggestions {
+                border-radius: 24px 24px 0 0;
+                box-shadow: 0 1px 6px rgba(32, 33, 36, 0.2);
+            }
+
+            .search-icon {
+                color: #9aa0a6;
+                margin-right: 12px;
+                flex-shrink: 0;
+            }
+
+            .search-icon svg {
+                width: 20px;
+                height: 20px;
+                fill: #9aa0a6;
+            }
+
+            .search-input {
+                flex: 1;
+                border: none;
+                outline: none;
+                font-size: 16px;
+                color: #202124;
+                background: transparent;
+                height: 100%;
+            }
+
+            .search-input::placeholder {
+                color: #9aa0a6;
+            }
+
+            .clear-btn {
+                display: none;
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: #9aa0a6;
+                padding: 4px;
+                margin-left: 4px;
+            }
+
+            .clear-btn.visible {
+                display: flex;
+                align-items: center;
+            }
+
+            .clear-btn:hover {
+                color: #5f6368;
+            }
+
+            .search-btn-group {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                margin-top: 30px;
+                transition: all 0.3s;
+            }
+
+            .has-results .search-btn-group {
+                display: none;
+            }
+
+            .btn {
+                padding: 10px 24px;
+                font-size: 14px;
+                color: #3c4043;
+                background: #f8f9fa;
+                border: 1px solid #f8f9fa;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+
+            .btn:hover {
+                box-shadow: 0 1px 3px rgba(32, 33, 36, 0.15);
+                border-color: #dadce0;
+                color: #202124;
+            }
+
+            /* === 下拉建议列表 === */
+            .suggestions {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 20px;
+                right: 20px;
+                background: #fff;
+                border: 1px solid #dfe1e5;
+                border-top: none;
+                border-radius: 0 0 24px 24px;
+                box-shadow: 0 4px 6px rgba(32, 33, 36, 0.15);
+                z-index: 100;
+                overflow: hidden;
+            }
+
+            .suggestions.visible {
+                display: block;
+            }
+
+            .suggestion-item {
+                display: flex;
+                align-items: center;
+                padding: 8px 20px;
+                cursor: pointer;
+                font-size: 16px;
+                color: #202124;
+                transition: background 0.1s;
+            }
+
+            .suggestion-item:hover,
+            .suggestion-item.active {
+                background: #f1f3f4;
+            }
+
+            .suggestion-item .sug-icon {
+                color: #9aa0a6;
+                margin-right: 14px;
+                flex-shrink: 0;
+                width: 20px;
+                text-align: center;
+            }
+
+            .suggestion-item .sug-word {
+                flex: 1;
+            }
+
+            .suggestion-item .sug-meta {
+                font-size: 12px;
+                color: #9aa0a6;
+                margin-left: 8px;
+            }
+
+            .suggestion-item .sug-loading {
+                color: #9aa0a6;
+                font-size: 14px;
+                font-style: italic;
+            }
+
+            /* === 搜索结果列表 === */
+            .results-container {
+                width: 100%;
+                max-width: 652px;
+                margin: 0 auto;
+                padding: 0 20px 60px;
+                display: none;
+            }
+
+            .results-container.visible {
+                display: block;
+            }
+
+            .results-stats {
+                color: #70757a;
+                font-size: 14px;
+                margin-bottom: 20px;
+                padding-left: 4px;
+            }
+
+            .result-card {
+                margin-bottom: 28px;
+            }
+
+            .result-url {
+                font-size: 14px;
+                color: #202124;
+                margin-bottom: 4px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .result-url .favicon {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #f1f3f4;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                flex-shrink: 0;
+            }
+
+            .result-url-text {
+                color: #202124;
+                font-size: 14px;
+            }
+
+            .result-title {
+                font-size: 20px;
+                color: #1a0dab;
+                cursor: pointer;
+                margin-bottom: 6px;
+                line-height: 1.3;
+                text-decoration: none;
+                display: block;
+            }
+
+            .result-title:visited {
+                color: #609;
+            }
+            .result-title:hover {
+                text-decoration: underline;
+            }
+
+            .result-snippet {
+                font-size: 14px;
+                color: #4d5156;
+                line-height: 1.58;
+                word-wrap: break-word;
+            }
+
+            .result-meta {
+                display: flex;
+                gap: 16px;
+                margin-top: 4px;
+                font-size: 12px;
+                color: #9aa0a6;
+            }
+
+            .result-score {
+                color: #1a73e8;
+            }
+
+            /* === 加载动画 === */
+            .loading-spinner {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+            }
+
+            .tiny-spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid #e8eaed;
+                border-top-color: #1a73e8;
+                border-radius: 50%;
+                animation: spin 0.6s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .error-box {
+                color: #d93025;
+                padding: 20px;
+                font-size: 14px;
+            }
+
+            .no-results {
+                color: #5f6368;
+                padding: 20px 0;
+                font-size: 16px;
+            }
+
+            .no-results b {
+                font-weight: normal;
+                font-style: italic;
+                color: #d93025;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="home-container" id="homeContainer">
+            <div class="logo">Search</div>
+            <div class="subtitle">基于 C++ muduo 的高性能搜索引擎</div>
+
+            <div class="search-wrapper" id="searchWrapper">
+                <div class="search-bar" id="searchBar">
+                    <span class="search-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                            />
+                        </svg>
+                    </span>
+                    <input
+                        type="text"
+                        class="search-input"
+                        id="searchInput"
+                        placeholder="输入关键词搜索..."
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    />
+                    <button
+                        class="clear-btn"
+                        id="clearBtn"
+                        onclick="clearSearch()"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24">
+                            <path
+                                fill="#9aa0a6"
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 下拉建议列表 -->
+                <div class="suggestions" id="suggestions"></div>
+            </div>
+
+            <!-- 首页两个按钮 -->
+            <div class="search-btn-group" id="searchBtnGroup">
+                <button class="btn" onclick="doWebSearch()">Search 搜索</button>
+                <button
+                    class="btn"
+                    onclick="
+                        document.getElementById('searchInput').value = '';
+                        document.getElementById('searchInput').focus();
+                    "
+                >
+                    手气不错
+                </button>
+            </div>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div class="results-container" id="resultsContainer"></div>
+
+        <script>
+            const input = document.getElementById("searchInput");
+            const clearBtn = document.getElementById("clearBtn");
+            const searchBar = document.getElementById("searchBar");
+            const suggestions = document.getElementById("suggestions");
+            const resultsContainer =
+                document.getElementById("resultsContainer");
+            const homeContainer = document.getElementById("homeContainer");
+            const searchBtnGroup = document.getElementById("searchBtnGroup");
+
+            let currentQuery = "";
+            let suggestionIndex = -1;
+            let suggestionItems = [];
+            let debounceTimer = null;
+            let abortController = null;
+
+            // =====================================================
+            // 输入事件：边输入边请求推荐词
+            // =====================================================
+            input.addEventListener("input", function () {
+                const query = input.value.trim();
+
+                // 清空按钮
+                if (query.length > 0) {
+                    clearBtn.classList.add("visible");
+                } else {
+                    clearBtn.classList.remove("visible");
+                    hideSuggestions();
+                    return;
+                }
+
+                // 防抖 200ms
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchSuggestions(query), 200);
+            });
+
+            // =====================================================
+            // 获取关键字推荐
+            // =====================================================
+            async function fetchSuggestions(query) {
+                currentQuery = query;
+
+                // 取消上一次请求
+                if (abortController) abortController.abort();
+                abortController = new AbortController();
+
+                try {
+                    const resp = await fetch("/api/keyword", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query }),
+                        signal: abortController.signal,
+                    });
+
+                    if (!resp.ok) throw new Error("Network error");
+
+                    const data = await resp.json();
+
+                    // 确保 query 没变（用户可能又输入了）
+                    if (input.value.trim() !== currentQuery) return;
+
+                    if (Array.isArray(data) && data.length > 0) {
+                        renderSuggestions(data);
+                    } else {
+                        hideSuggestions();
+                    }
+                } catch (err) {
+                    if (err.name !== "AbortError") {
+                        hideSuggestions();
+                    }
+                }
+            }
+
+            // =====================================================
+            // 渲染下拉建议列表
+            // =====================================================
+            function renderSuggestions(items) {
+                suggestionItems = items;
+                suggestionIndex = -1;
+
+                suggestions.innerHTML = items
+                    .map(
+                        (item, i) => `
+            <div class="suggestion-item" data-index="${i}"
+                 onmousedown="event.preventDefault(); selectSuggestion(${i})"
+                 onmouseenter="highlightSuggestion(${i})">
+                <span class="sug-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#9aa0a6" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                </span>
+                <span class="sug-word">${escapeHtml(item.word)}</span>
+                <span class="sug-meta">距离:${item.distance}</span>
+            </div>
+        `,
+                    )
+                    .join("");
+
+                suggestions.classList.add("visible");
+                searchBar.classList.add("has-suggestions");
+            }
+
+            function hideSuggestions() {
+                suggestions.classList.remove("visible");
+                searchBar.classList.remove("has-suggestions");
+                suggestionItems = [];
+                suggestionIndex = -1;
+            }
+
+            // =====================================================
+            // 键盘导航
+            // =====================================================
+            input.addEventListener("keydown", function (e) {
+                const items = suggestions.querySelectorAll(".suggestion-item");
+
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    suggestionIndex = Math.min(
+                        suggestionIndex + 1,
+                        items.length - 1,
+                    );
+                    updateActiveSuggestion(items);
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    suggestionIndex = Math.max(suggestionIndex - 1, -1);
+                    updateActiveSuggestion(items);
+                } else if (e.key === "Enter") {
+                    if (
+                        suggestionIndex >= 0 &&
+                        suggestionIndex < suggestionItems.length
+                    ) {
+                        // 选中建议项 → 填入输入框并搜索网页
+                        e.preventDefault();
+                        selectSuggestion(suggestionIndex);
+                    } else {
+                        // 没有选中建议 → 直接网页搜索
+                        e.preventDefault();
+                        hideSuggestions();
+                        doWebSearch();
+                    }
+                } else if (e.key === "Escape") {
+                    hideSuggestions();
+                }
+            });
+
+            function updateActiveSuggestion(items) {
+                items.forEach((item, i) => {
+                    if (i === suggestionIndex) {
+                        item.classList.add("active");
+                        item.scrollIntoView({ block: "nearest" });
+                    } else {
+                        item.classList.remove("active");
+                    }
+                });
+            }
+
+            function highlightSuggestion(index) {
+                suggestionIndex = index;
+                const items = suggestions.querySelectorAll(".suggestion-item");
+                updateActiveSuggestion(items);
+            }
+
+            function selectSuggestion(index) {
+                if (index >= 0 && index < suggestionItems.length) {
+                    input.value = suggestionItems[index].word;
+                    hideSuggestions();
+                    doWebSearch();
+                }
+            }
+
+            // =====================================================
+            // 网页搜索
+            // =====================================================
+            async function doWebSearch() {
+                const query = input.value.trim();
+                if (!query) return;
+
+                hideSuggestions();
+                abortController && abortController.abort();
+
+                // 切换到结果页面布局
+                homeContainer.classList.add("has-results");
+                clearBtn.classList.add("visible");
+
+                // 显示加载状态
+                resultsContainer.classList.add("visible");
+                resultsContainer.innerHTML =
+                    '<div class="loading-spinner"><span class="tiny-spinner"></span></div>';
+
+                try {
+                    const resp = await fetch("/api/search", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query }),
+                    });
+
+                    const data = await resp.json();
+
+                    if (!resp.ok) {
+                        resultsContainer.innerHTML = `<div class="error-box">⚠️ ${escapeHtml(data.error || "搜索失败")}</div>`;
+                        return;
+                    }
+
+                    const results = data.result || data.results || [];
+                    const total = data.total || results.length;
+
+                    if (results.length === 0) {
+                        resultsContainer.innerHTML = `<div class="no-results">未找到包含 <b>${escapeHtml(query)}</b> 的网页。</div>`;
+                    } else {
+                        resultsContainer.innerHTML = `
+                    <div class="results-stats">找到约 ${total} 条结果</div>
+                    ${results
+                        .map(
+                            (item) => `
+                        <div class="result-card">
+                            <div class="result-url">
+                                <div class="favicon">🔗</div>
+                                <span class="result-url-text">${escapeHtml(extractDomain(item.link || ""))}</span>
+                            </div>
+                            <a class="result-title" href="${escapeHtml(item.link || "#")}" target="_blank" rel="noopener">
+                                ${escapeHtml(item.title || "(无标题)")}
+                            </a>
+                            <div class="result-snippet">${escapeHtml(item.abstract || item.snippet || "")}</div>
+                            <div class="result-meta">
+                                <span>DocID: ${item.docid}</span>
+                                <span class="result-score">相关度: ${(item.score || 0).toFixed(4)}</span>
+                            </div>
+                        </div>
+                    `,
+                        )
+                        .join("")}
+                `;
+                    }
+                } catch (err) {
+                    resultsContainer.innerHTML = `
+                <div class="error-box">
+                    ⚠️ 搜索出错：${err.message}
+                    <br><small>请确认服务器已启动（online_search 在 8888 端口，app.py 在 8080 端口）</small>
+                </div>
+            `;
+                }
+            }
+
+            // =====================================================
+            // 辅助函数
+            // =====================================================
+            function clearSearch() {
+                input.value = "";
+                clearBtn.classList.remove("visible");
+                hideSuggestions();
+                homeContainer.classList.remove("has-results");
+                resultsContainer.classList.remove("visible");
+                resultsContainer.innerHTML = "";
+                input.focus();
+            }
+
+            function extractDomain(url) {
+                try {
+                    const u = new URL(url);
+                    return u.hostname;
+                } catch {
+                    return url;
+                }
+            }
+
+            function escapeHtml(str) {
+                if (!str) return "";
+                const div = document.createElement("div");
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // =====================================================
+            // 聚焦/失焦
+            // =====================================================
+            input.addEventListener("focus", () => {
+                searchBar.classList.add("focused");
+                if (input.value.trim()) {
+                    clearBtn.classList.add("visible");
+                }
+            });
+
+            input.addEventListener("blur", () => {
+                // 延迟隐藏，让点击建议项的事件先触发
+                setTimeout(() => {
+                    searchBar.classList.remove("focused");
+                    hideSuggestions();
+                }, 200);
+            });
+
+            // 点击空白处关闭建议
+            document.addEventListener("click", function (e) {
+                if (
+                    !searchBar.contains(e.target) &&
+                    !suggestions.contains(e.target)
+                ) {
+                    hideSuggestions();
+                    searchBar.classList.remove("focused");
+                }
+            });
+
+            // 初始聚焦
+            input.focus();
+        </script>
+    </body>
+</html>

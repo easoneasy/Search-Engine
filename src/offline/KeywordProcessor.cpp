@@ -1,7 +1,6 @@
 //生成词典库、索引库
 #include "../../include/offline/KeywordProcessor.h"
 #include <cctype>
-#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <iterator>

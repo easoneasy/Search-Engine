@@ -34,11 +34,20 @@ if(NOT TINYXML2_INCLUDE_DIR OR NOT TINYXML2_LIBRARY)
     message(FATAL_ERROR "tinyxml2 not found")
 endif()
 
-# nlohmann_json: 用于在线模块 JSON 序列化（暂未启用）
-# find_package(nlohmann_json REQUIRED)
+# nlohmann_json: header-only，手动查找头文件路径
+find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp)
+if(NOT NLOHMANN_JSON_INCLUDE_DIR)
+    message(FATAL_ERROR "nlohmann_json not found. Install: sudo apt install nlohmann-json3-dev")
+endif()
 
-# muduo: 用于在线模块的 TCP 网络框架（暂未启用）
-# find_package(muduo REQUIRED)  # muduo 库分为 muduo_net 和 muduo_base
+# muduo: 手动查找（源码编译安装的版本不含 cmake 配置文件）
+find_path(MUDUO_INCLUDE_DIR NAMES muduo/net/TcpServer.h)
+find_library(MUDUO_NET_LIB  muduo_net)
+find_library(MUDUO_BASE_LIB muduo_base)
+if(NOT MUDUO_INCLUDE_DIR OR NOT MUDUO_NET_LIB OR NOT MUDUO_BASE_LIB)
+    message(FATAL_ERROR "muduo not found. Build from source: https://github.com/chenshuo/muduo")
+endif()
+
 
 # =========================================================================
 # 模块一：收集公共模块代码 (common)
@@ -50,33 +59,37 @@ file(GLOB COMMON_SOURCES CONFIGURE_DEPENDS "src/common/*.cpp")
 # =========================================================================
 file(GLOB OFFLINE_SOURCES CONFIGURE_DEPENDS "src/offline/*.cpp")
 
-# 生成离线可执行文件 search_engine
-add_executable(search_engine ${OFFLINE_SOURCES} ${COMMON_SOURCES})
+# 生成离线可执行文件 offline_search
+add_executable(offline_search ${OFFLINE_SOURCES} ${COMMON_SOURCES})
 
 # 链接离线程序需要的库
 
-target_link_libraries(search_engine
+target_link_libraries(offline_search
     ${TINYXML2_LIBRARY}
     Threads::Threads
 )
-target_include_directories(search_engine PRIVATE ${TINYXML2_INCLUDE_DIR})
+target_include_directories(offline_search PRIVATE ${TINYXML2_INCLUDE_DIR})
 
 
 # =========================================================================
 # 模块三：在线检索服务器 (Online Engine)
 # =========================================================================
-# file(GLOB ONLINE_SOURCES CONFIGURE_DEPENDS "src/online/*.cpp")
+file(GLOB ONLINE_SOURCES CONFIGURE_DEPENDS "src/online/*.cc")
 
-# 生成在线可执行文件 nutshell_online
-# add_executable(nutshell_online ${ONLINE_SOURCES} ${COMMON_SOURCES})
+# 生成在线可执行文件 online_search
+add_executable(online_search ${ONLINE_SOURCES} ${COMMON_SOURCES})
 
 # 链接在线程序需要的库：muduo_net, muduo_base, nlohmann_json, pthread
-# target_link_libraries(nutshell_online
-#     muduo::muduo_net
-#     muduo::muduo_base
-#     nlohmann_json::nlohmann_json
-#     Threads::Threads
-# )
+target_link_libraries(online_search
+    ${MUDUO_NET_LIB}
+    ${MUDUO_BASE_LIB}
+    Threads::Threads
+)
+target_include_directories(online_search PRIVATE
+    ${MUDUO_INCLUDE_DIR}
+    ${NLOHMANN_JSON_INCLUDE_DIR}
+)
+
 
 # =========================================================================
 # (预留) 单元测试模块

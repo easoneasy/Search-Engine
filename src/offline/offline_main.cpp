@@ -6,11 +6,11 @@ using namespace std;
 
 int main()
 {
-        KeyWordProcessor kw;
-        kw.process("data/corpus/CN", "data/corpus/EN");
+        // KeyWordProcessor kw;
+        // kw.process("data/corpus/CN", "data/corpus/EN");
 
-        PageProcessor ps;
-        ps.process("data/corpus/webpages");
+        // PageProcessor ps;
+        // ps.process("data/corpus/webpages");
 
 
     return 0;
