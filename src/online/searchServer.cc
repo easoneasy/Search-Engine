@@ -98,7 +98,7 @@ void searchServer::onConnection(const muduo::net::TcpConnectionPtr &conn)
 void searchServer::onMessage(const muduo::net::TcpConnectionPtr &conn,
     muduo::net::Buffer *buf,muduo::Timestamp receiveTime)
 {
-    LOG_INFO << " onMessage start ..." ;
+    LOG_INFO << " onMessage start ..." + receiveTime.toFormattedString();
     // 把收到的数据追加到该连接的缓冲区
     string &connBuf = connectionBufer_[conn->name()];
     connBuf.append(buf->retrieveAllAsString());
@@ -106,7 +106,9 @@ void searchServer::onMessage(const muduo::net::TcpConnectionPtr &conn,
     // 循环拆包
     uint8_t type;
     string value;
-    while(TlvProtocol::decode(connBuf, type, value))
+    // 防止恶意攻击
+    bool error = false;
+    while(TlvProtocol::decode(connBuf, type, value, &error))
     {
 
         // 根据type  路由到不同的处理器
@@ -126,7 +128,13 @@ void searchServer::onMessage(const muduo::net::TcpConnectionPtr &conn,
             response = "ERROR : unknow type";
             break;
         }
-
+        if(error)
+        {
+            LOG_WARN << "Invalied packet from :" << conn->peerAddress().toIpPort()
+                << ", force closing connection";
+            // 强制关闭
+            conn->forceClose();
+        }
         // 把响应用TLV编码后发给客户端
         string packet = TlvProtocol::encode(type, response);
         conn->send(packet);

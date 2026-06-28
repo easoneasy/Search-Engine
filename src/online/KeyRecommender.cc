@@ -159,6 +159,7 @@ string KeyRecommender::query(const string &keyword)
             continue;
         }
         // 找到了  取索引结果的并集
+        // it->second.begin() 和 end() 代表这个 ID 集合的开头和结尾。
         // set可以一次插入整个集合
         candidateIds.insert(it->second.begin(),it->second.end());
     }
@@ -189,12 +190,15 @@ string KeyRecommender::query(const string &keyword)
     int k = 5;
     while(!pq.empty() && k--)
     {
+        // 每次循环取优先级队列的队头元素
         const Candidate &top = pq.top();
         json item;
         item["word"] = top.word;
         item["frequency"] = top.frequency;
         item["distance"] = top.distance;
+        // 放入json结果集中
         jsonResult.push_back(item);
+        // 出队
         pq.pop();
     }
 
