@@ -41,6 +41,14 @@ KeyRecommender::KeyRecommender()
     loadDict("data/cn_dict.dat");
     // 加载索引文件
     loadIndex("data/cn_index.dat");
+
+    // 构建 Trie 树（用于前缀搜索）
+    std::cout << "Building Trie tree..." << std::endl;
+    for (const auto& [word, freq] : dict_)
+    {
+        trie_.insert(word, freq);
+    }
+    std::cout << "Trie built, total words = " << trie_.size() << std::endl;
 }
 
 // 加载词典文件
@@ -203,5 +211,21 @@ string KeyRecommender::query(const string &keyword)
     }
 
     // 序列化为字符串返回
+    return jsonResult.dump(2);
+}
+
+// 前缀搜索：沿 Trie 走到前缀节点 → 收集所有子词 → 按词频排序 → Top K → JSON
+std::string KeyRecommender::queryByPrefix(const std::string& prefix, int topK)
+{
+    auto results = trie_.searchByPrefix(prefix, topK);
+
+    json jsonResult = json::array();
+    for (const auto& r : results)
+    {
+        json item;
+        item["word"]      = r.word;
+        item["frequency"] = r.frequency;
+        jsonResult.push_back(item);
+    }
     return jsonResult.dump(2);
 }

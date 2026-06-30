@@ -1,4 +1,5 @@
 #pragma once
+#include "LRUCache.h"
 #include <cppjieba/Jieba.hpp>
 #include <string>
 #include <unordered_map>
@@ -26,6 +27,9 @@ struct WebPage
     std::string link;
     std::string content;
 };
+
+// 文档缓存类型别名
+using DocCache = LRUCache<int, WebPage>;
 
 class WebPageQuery
 {
@@ -71,4 +75,7 @@ private:
     std::unordered_map<int, OffsetInfo> offsetLib_;
     // 存储倒排索引库
     std::unordered_map<std::string, std::vector<std::pair<int, double>>> invertIndex_;
+
+    // mutable 允许在const方法中修改
+    mutable DocCache docCache_{1024};
 };

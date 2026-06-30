@@ -43,8 +43,29 @@ void searchServer::start()
 string searchServer::handleKeyRecommend(const string &keyword)
 {
     LOG_INFO << "KeyRecommend query : " << keyword;
+
+    // -----------
+    // 查缓存
+    string cached;
+    if(keyCache_.get(keyword,cached))
+    {
+        LOG_INFO << "---> cache HIT fro '" << keyword << "'";
+        // 命中，直接返回缓存结果
+        return cached;
+    }
+    // 缓存未命中
+    LOG_INFO << "---> cache MISS , querying ...";
+
     // auto results = keyRecommender_->query(keyword);
-    return keyRecommender_->query(keyword);
+    string result = keyRecommender_->query(keyword);
+
+    // 将结果放入缓存，只缓存有实际结果的成功查询
+    if(!result.empty() && result.find("\"error\"") == string::npos )
+    {
+        keyCache_.put(keyword, result);
+    }
+    return result;
+
     // // 临时： 用纯文本拼接结果  --> 下一步要改成json
     // string output;
     // for(size_t i = 0; i < results.size(); ++i)
@@ -61,9 +82,31 @@ string searchServer::handleWebPageSearch(const string &query)
 {
     LOG_INFO << "WebPage query :" << query;
 
+    // 查询结果缓存
+    string cached;
+    if(pageCache_.get(query, cached))
+    {
+        LOG_INFO << "  -> cache HIT for page query";
+        return cached;
+    }
+
+    LOG_INFO << "  -> cache MISS , querying...";
+    string result = webPageQuery_->query(query);
+
+    // 缓存成功的查询结果
+    if(!result.empty() && result.find("\"error\"") == string::npos)
+    {
+        pageCache_.put(query, result);
+    }
+    // 记录热搜：本次成功搜索的关键词
+    hotTracker_.recordSearch(query);
+
+    return result;
     // 调用WebPageQuery::query  --> 下一步改为json
     // auto results = webPageQuery_->query(query);
-    return webPageQuery_->query(query);
+    //
+    // return webPageQuery_->query(query);
+
     // // 临时：用纯文本拼接结果
     // string output;
     // for(size_t i =0; i< results.size();++i)
@@ -110,7 +153,6 @@ void searchServer::onMessage(const muduo::net::TcpConnectionPtr &conn,
     bool error = false;
     while(TlvProtocol::decode(connBuf, type, value, &error))
     {
-
         // 根据type  路由到不同的处理器
         string response;
         switch (type)
@@ -123,20 +165,26 @@ void searchServer::onMessage(const muduo::net::TcpConnectionPtr &conn,
             response = handleWebPageSearch(value);
             break;
 
+            case TYPE_HOT_SEARCH:
+            response = hotTracker_.getHotKeywordsJson(10);
+            break;
+
             default:
             LOG_WARN << "Unknow TLV type : " << static_cast<int>(type);
             response = "ERROR : unknow type";
             break;
         }
-        if(error)
-        {
-            LOG_WARN << "Invalied packet from :" << conn->peerAddress().toIpPort()
-                << ", force closing connection";
-            // 强制关闭
-            conn->forceClose();
-        }
+
         // 把响应用TLV编码后发给客户端
         string packet = TlvProtocol::encode(type, response);
         conn->send(packet);
+    }
+
+    // decode 返回 error 后退出循环，在此处断开连接
+    if(error)
+    {
+        LOG_WARN << "Invalied packet from :" << conn->peerAddress().toIpPort()
+            << ", force closing connection";
+        conn->forceClose();
     }
 }

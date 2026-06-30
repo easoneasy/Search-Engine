@@ -220,7 +220,9 @@ vector<int> WebPageQuery::getCandidateDocIds(const vector<string> &words)
         }
         set<int> temp;
         set_intersection(result.begin(),result.end(),current.begin(),current.end(),inserter(temp, temp.begin()));
-        result = move(temp);
+        // std::move 资源右值引用转移：
+        // 把 temp 的数据给 result，避免了深度拷贝的性能开销
+        result = std::move(temp);
         if(result.empty())
         {
             return {};
@@ -275,6 +277,14 @@ vector<QueryResult> WebPageQuery::rankPage(const vector<int> &docids,
 // 根据docid从网页库中获取网页内容
 WebPage WebPageQuery::getDocById(int docid)
 {
+    // 查文档缓存
+    WebPage cachePage;
+    if(docCache_.get(docid, cachePage))
+    {
+        // 命中，跳过磁盘IO
+        return cachePage;
+    }
+    // 缓存未命中，从磁盘中读取
     WebPage page;
     page.docid = docid;
 
@@ -329,6 +339,11 @@ WebPage WebPageQuery::getDocById(int docid)
     {
         contentStart += 9;
         page.content = xmlBlock.substr(contentStart,contentEnd-contentStart);
+    }
+    // 放入缓存
+    if(!page.title.empty() || !page.content.empty())
+    {
+        docCache_.put(docid, page);
     }
     return page;
 }
@@ -476,63 +491,3 @@ string WebPageQuery::query(const string &sentence)
     LOG_INFO << "Found " << ranked.size() << " results, return top :" << topN;
     return response.dump(2);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-// 根据docid从倒排索引中找到关键词在该网页的权重
-vector<double> WebPageQuery::getDocVector(int docid,const vector<string> &words)
-{
-    vector<double> vec;
-    for(const auto &word : words)
-    {
-        double weight = 0.0;
-        auto it = invertIndex_.find(word);
-        if(it != invertIndex_.end())
-        {
-            for(const auto &item : it->second)
-            {
-                if(item.first == docid)
-                {
-                    weight = item.second;
-                    break;
-                }
-            }
-        }
-        vec.push_back(weight);
-    }
-    return vec;
-}
-
-// 计算关键词与网页的相关度
-vector<CandidateDoc> WebPageQuery::caculateCandidateDocs(const vector<string> &words)
-{
-    vector<CandidateDoc> result;
-    // 获取候选网页id
-    auto docIds = getCandidateDocIds(words);
-
-    for(auto docid : docIds)
-    {
-        CandidateDoc doc;
-        doc.docid = docid;
-        // 计算余弦相似度
-        doc.similarity = 0.0;
-        // docid + 相似度
-        result.push_back(doc);
-    }
-    return result;
-}*/

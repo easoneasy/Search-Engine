@@ -11,7 +11,8 @@
 enum TlvType : uint8_t
 {
     TYPE_KEYWORD_RECOMMEND = 1,  // 关键词推荐
-    TYPE_WEBPAGE_SEARCH = 2      // 网页搜索
+    TYPE_WEBPAGE_SEARCH    = 2,  // 网页搜索
+    TYPE_HOT_SEARCH        = 3   // 热搜榜
 };
 
 namespace TlvProtocol
